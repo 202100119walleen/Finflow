@@ -473,7 +473,7 @@ const System = (() => {
             const desc = document.getElementById('tDesc').value;
             let amt = parseFloat(document.getElementById('tAmount').value);
             const cat = document.getElementById('tCat').value;
-            if (!desc || isNaN(amt)) return this.modal("Input Error", "Please enter valid description and amount.");
+            if (!desc || isNaN(amt)) return this.modal("Input Error", "Pleasee enter valid description and amount.");
             if (state.currentType === 'exp') amt = -Math.abs(amt);
             
             const { error } = await supabase.from('transactions').insert([{ 
