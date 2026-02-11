@@ -27,7 +27,6 @@
             body { flex-direction: row; }
         }
 
-        /* --- MOBILE TOP BAR --- */
         .mobile-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 20px; background: var(--sidebar); border-bottom: 1px solid var(--border);
@@ -39,15 +38,13 @@
             background: none; border: none; font-size: 1.5rem; color: var(--text); cursor: pointer;
         }
 
-        /* --- AUTHENTICATION --- */
-        #authWrapper { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; }
-        .auth-card { background: var(--card); padding: 40px 24px; border-radius: var(--radius-xl); width: 100%; max-width: 440px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; }
+        #authWrapper { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto;}
+        .auth-card { background: var(--card); padding: 40px 24px; border-radius: var(--radius-xl); width: 100%; max-width: 440px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; margin-top: auto; margin-bottom: auto;}
 
         .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; font-size: 0.75rem; font-weight: 800; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
         .form-control { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; font-size: 0.95rem; }
 
-        /* --- CALENDAR --- */
         .calendar-container { background: var(--bg); border-radius: var(--radius-md); padding: 16px; border: 1px solid var(--border); margin-bottom: 24px; }
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
@@ -57,7 +54,6 @@
         .cal-day.selected { background: var(--primary); color: white; }
         .cal-day.today { border: 2px solid var(--primary); }
         
-        /* DOT INDICATOR */
         .has-entry::after {
             content: '';
             position: absolute;
@@ -69,7 +65,6 @@
         }
         .selected.has-entry::after { background-color: white; }
 
-        /* --- APP STRUCTURE --- */
         .app-shell { display: none; width: 100%; min-height: 100vh; flex-direction: column; }
         @media (min-width: 1024px) { .app-shell { flex-direction: row; } }
 
@@ -109,7 +104,6 @@
         .type-btn.active-inc { background: var(--success); color: white; }
         .type-btn.active-exp { background: var(--danger); color: white; }
 
-        /* MODAL SYSTEM */
         .modal { 
             position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); 
             display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;
@@ -142,11 +136,17 @@
     <section id="authWrapper">
         <div class="auth-card">
             <div style="font-weight: 800; color: var(--primary); font-size: 1.8rem; margin-bottom: 8px;">FinFlow Pro</div>
-            <p style="color: var(--muted); margin-bottom: 40px; font-size: 0.95rem;">Precision Cloud Financials</p>
+            <p style="color: var(--muted); margin-bottom: 40px; font-size: 0.95rem;" id="authSubtitle">Precision Cloud Financials</p>
+            
+            <div id="regFields" class="hidden">
+                <div class="input-group"><label>Initial Balance (₱)</label><input type="number" id="initBalance" class="form-control" placeholder="0.00"></div>
+            </div>
+
             <div class="input-group"><label>Email Address</label><input type="email" id="email" class="form-control" placeholder="Enter your email"></div>
-            <div class="input-group"><label>Password</label><input type="password" id="password" class="form-control" placeholder="••••••••"></div>
+            <div class="input-group"><label>Password</label><input type="password" id="password" class="form-control" placeholder="Enter your password"></div>
+            
             <button id="authBtn" class="btn btn-primary" style="width: 100%;" onclick="System.handleAuth()">Sign In to Dashboard</button>
-            <p style="margin-top: 24px; font-size: 0.85rem; color: var(--muted);">Don't have an account? <a href="#" id="toggleText" onclick="System.toggleAuthMode()" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create Account</a></p>
+            <p style="margin-top: 24px; font-size: 0.85rem; color: var(--muted);"><span id="toggleQuestion">Don't have an account?</span> <a href="#" id="toggleText" onclick="System.toggleAuthMode()" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create Account</a></p>
         </div>
     </section>
 
@@ -236,14 +236,15 @@ const System = (() => {
 
     const state = {
         user: null,
+        profile: null,
         transactions: [],
-        categories: ['Salary', 'Food', 'Utilities', 'Investments', 'Savings', 'Personal'],
+        categories: ['Salary', 'Food', 'Utilities', 'Investments', 'Savings','Transportation', 'Personal'],
         mainChart: null,
         isLoginMode: true,
         currentType: 'inc',
         viewDate: new Date(),
         selectedDate: new Date(),
-        viewScope: 'month' // 'month' or 'year'
+        viewScope: 'month'
     };
 
     return {
@@ -269,6 +270,7 @@ const System = (() => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 state.user = session.user;
+                await this.loadProfile();
                 await this.loadCategories();
                 this.loadDashboard();
             }
@@ -276,6 +278,16 @@ const System = (() => {
             this.renderCalendar();
             this.selectDate(new Date());
             document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        },
+
+        async loadProfile() {
+            const { data, error } = await supabase.from('profiles').select('*').eq('id', state.user.id).single();
+            if (data && data.full_name) {
+                state.profile = data;
+                document.getElementById('welcomeUser').innerText = `Welcome, ${data.full_name}`;
+            } else {
+                document.getElementById('welcomeUser').innerText = `Welcome`;
+            }
         },
 
         toggleSidebar() {
@@ -352,16 +364,33 @@ const System = (() => {
         async handleAuth() {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+            const initBal = parseFloat(document.getElementById('initBalance').value) || 0;
             const btn = document.getElementById('authBtn');
+            
             btn.disabled = true;
             try {
-                const { data, error } = state.isLoginMode 
-                    ? await supabase.auth.signInWithPassword({ email, password })
-                    : await supabase.auth.signUp({ email, password });
-                if (error) throw error;
-                if (data.user) {
-                    state.user = data.user;
-                    state.isLoginMode ? location.reload() : this.modal("Success", "Verification email sent!");
+                if (state.isLoginMode) {
+                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    location.reload();
+                } else {
+                    const { data, error } = await supabase.auth.signUp({ email, password });
+                    if (error) throw error;
+                    
+                    if (data.user) {
+                        // Profile is created without fullName requirement
+                        await supabase.from('profiles').upsert([{ id: data.user.id }]);
+                        if(initBal !== 0) {
+                            await supabase.from('transactions').insert([{
+                                user_id: data.user.id,
+                                desc_text: 'Opening Balance',
+                                amount: initBal,
+                                category: 'Investments',
+                                created_at: new Date().toISOString()
+                            }]);
+                        }
+                        this.modal("Account Created", "Check your email for verification. You can now Sign In.", [{label: 'Go to Login', class: 'btn btn-primary', action: () => { this.toggleAuthMode(); this.closeModal(); }}]);
+                    }
                 }
             } catch (err) { this.modal("Auth Error", err.message); } finally { btn.disabled = false; }
         },
@@ -473,7 +502,7 @@ const System = (() => {
             const desc = document.getElementById('tDesc').value;
             let amt = parseFloat(document.getElementById('tAmount').value);
             const cat = document.getElementById('tCat').value;
-            if (!desc || isNaN(amt)) return this.modal("Input Error", "Pleasee enter valid description and amount.");
+            if (!desc || isNaN(amt)) return this.modal("Input Error", "Please enter valid description and amount.");
             if (state.currentType === 'exp') amt = -Math.abs(amt);
             
             const { error } = await supabase.from('transactions').insert([{ 
@@ -526,7 +555,6 @@ const System = (() => {
             let labels, chartData;
 
             if (state.viewScope === 'year') {
-                // Group by month
                 const months = Array(12).fill(0);
                 displayData.forEach(t => months[new Date(t.created_at).getMonth()] += t.amount);
                 labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -560,7 +588,14 @@ const System = (() => {
             const a = document.createElement('a'); a.href = url; a.download = 'FinFlow_Report.csv'; a.click();
         },
 
-        toggleAuthMode() { state.isLoginMode = !state.isLoginMode; document.getElementById('authBtn').innerText = state.isLoginMode ? "Sign In" : "Sign Up"; },
+        toggleAuthMode() { 
+            state.isLoginMode = !state.isLoginMode; 
+            document.getElementById('authBtn').innerText = state.isLoginMode ? "Sign In to Dashboard" : "Create Enterprise Account";
+            document.getElementById('authSubtitle').innerText = state.isLoginMode ? "Precision Cloud Financials" : "Join the FinFlow Network";
+            document.getElementById('toggleQuestion').innerText = state.isLoginMode ? "Don't have an account?" : "Already have an account?";
+            document.getElementById('toggleText').innerText = state.isLoginMode ? "Create Account" : "Sign In";
+            document.getElementById('regFields').classList.toggle('hidden');
+        },
         toggleTheme() { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); },
         async logout() { await supabase.auth.signOut(); location.reload(); }
     };
