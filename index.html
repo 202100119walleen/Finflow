@@ -52,10 +52,22 @@
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
         .cal-head { font-size: 0.65rem; font-weight: 800; color: var(--muted); padding-bottom: 8px; }
-        .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); }
+        .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); position: relative; }
         .cal-day:hover { background: var(--border); }
         .cal-day.selected { background: var(--primary); color: white; }
         .cal-day.today { border: 2px solid var(--primary); }
+        
+        /* DOT INDICATOR */
+        .has-entry::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            background-color: var(--primary);
+            border-radius: 50%;
+        }
+        .selected.has-entry::after { background-color: white; }
 
         /* --- APP STRUCTURE --- */
         .app-shell { display: none; width: 100%; min-height: 100vh; flex-direction: column; }
@@ -134,7 +146,7 @@
         </div>
     </section>
 
-    <div class="mobile-header" id="mobileHeader">
+    <div class="mobile-header hidden" id="mobileHeader">
         <div style="font-weight: 800; font-size: 1.2rem;">FF<span style="color: var(--primary);">.</span></div>
         <button class="hamburger" onclick="System.toggleSidebar()">☰</button>
     </div>
@@ -143,7 +155,7 @@
         <aside class="sidebar" id="sidebar">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                 <div style="font-weight: 800; font-size: 1.8rem;">FF<span style="color: var(--primary);">.</span></div>
-                <button class="hamburger" onclick="System.toggleSidebar()" style="display: block; @media (min-width: 1024px) { display: none; }">✕</button>
+                <button class="hamburger" onclick="System.toggleSidebar()" style="display: block;">✕</button>
             </div>
             
             <div class="calendar-container">
@@ -220,7 +232,6 @@ const System = (() => {
     };
 
     return {
-        // --- CORE MODAL SYSTEM ---
         modal(title, content, buttons = [{label: 'Close', class: 'btn', action: () => this.closeModal()}]) {
             const m = document.getElementById('globalModal');
             document.getElementById('modalTitle').innerText = title;
@@ -248,6 +259,7 @@ const System = (() => {
             }
             this.renderCategoryDropdown();
             this.renderCalendar();
+            this.selectDate(new Date());
             document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         },
 
@@ -290,7 +302,7 @@ const System = (() => {
                 state.categories.push(name);
                 await supabase.from('user_settings').upsert({ user_id: state.user.id, categories: state.categories });
                 this.renderCategoryDropdown();
-                this.manageCategories(); // Refresh list
+                this.manageCategories();
             }
         },
 
@@ -308,7 +320,7 @@ const System = (() => {
 
         showIncomeHistory() {
             const month = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-            const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth());
+            const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth() && new Date(t.created_at).getFullYear() === state.viewDate.getFullYear());
             const content = filtered.length ? `
                 <div style="max-height: 300px; overflow-y: auto;">
                     ${filtered.map(t => `
@@ -343,17 +355,37 @@ const System = (() => {
             const grid = document.getElementById('calendarGrid');
             const label = document.getElementById('calMonthLabel');
             grid.innerHTML = '';
-            label.innerText = state.viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const year = state.viewDate.getFullYear();
+            const month = state.viewDate.getMonth();
+            label.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(state.viewDate);
+            
             ['S','M','T','W','T','F','S'].forEach(d => grid.innerHTML += `<div class="cal-head">${d}</div>`);
-            const year = state.viewDate.getFullYear(), month = state.viewDate.getMonth();
-            const firstDay = new Date(year, month, 1).getDay(), days = new Date(year, month + 1, 0).getDate();
-            for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
-            for (let i = 1; i <= days; i++) {
-                const isSel = i === state.selectedDate.getDate() && month === state.selectedDate.getMonth() && year === state.selectedDate.getFullYear();
+            
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const lastDayDate = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+
+            const entryDays = state.transactions.map(t => {
+                const d = new Date(t.created_at);
+                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            });
+
+            for (let i = 0; i < firstDayIndex; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
+
+            for (let i = 1; i <= lastDayDate; i++) {
+                const dayDate = new Date(year, month, i);
+                const isSelected = dayDate.toDateString() === state.selectedDate.toDateString();
+                const isToday = dayDate.toDateString() === today.toDateString();
+                const hasEntry = entryDays.includes(`${year}-${month}-${i}`);
+                
                 const dayEl = document.createElement('div');
-                dayEl.className = `cal-day ${isSel ? 'selected' : ''}`;
+                dayEl.className = `cal-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${hasEntry ? 'has-entry' : ''}`;
                 dayEl.innerText = i;
-                dayEl.onclick = () => { state.selectedDate = new Date(year, month, i); this.selectDate(state.selectedDate); };
+                dayEl.onclick = () => {
+                    state.selectedDate = new Date(year, month, i);
+                    this.selectDate(state.selectedDate);
+                };
                 grid.appendChild(dayEl);
             }
         },
@@ -364,8 +396,16 @@ const System = (() => {
             this.renderUI();
         },
 
-        prevMonth() { state.viewDate.setMonth(state.viewDate.getMonth() - 1); this.renderCalendar(); this.renderUI(); },
-        nextMonth() { state.viewDate.setMonth(state.viewDate.getMonth() + 1); this.renderCalendar(); this.renderUI(); },
+        prevMonth() { 
+            state.viewDate.setMonth(state.viewDate.getMonth() - 1); 
+            this.renderCalendar(); 
+            this.renderUI(); 
+        },
+        nextMonth() { 
+            state.viewDate.setMonth(state.viewDate.getMonth() + 1); 
+            this.renderCalendar(); 
+            this.renderUI(); 
+        },
 
         setType(type) {
             state.currentType = type;
@@ -383,6 +423,7 @@ const System = (() => {
         async sync() {
             const { data } = await supabase.from('transactions').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
             state.transactions = data || [];
+            this.renderCalendar();
             this.renderUI();
         },
 
@@ -392,16 +433,28 @@ const System = (() => {
             const cat = document.getElementById('tCat').value;
             if (!desc || isNaN(amt)) return this.modal("Input Error", "Please enter valid description and amount.");
             if (state.currentType === 'exp') amt = -Math.abs(amt);
-            const { error } = await supabase.from('transactions').insert([{ user_id: state.user.id, desc_text: desc, amount: amt, category: cat, created_at: state.selectedDate.toISOString() }]);
+            
+            const { error } = await supabase.from('transactions').insert([{ 
+                user_id: state.user.id, 
+                desc_text: desc, 
+                amount: amt, 
+                category: cat, 
+                created_at: state.selectedDate.toISOString() 
+            }]);
+
             if (!error) { 
-                document.getElementById('tDesc').value = ''; document.getElementById('tAmount').value = ''; 
+                document.getElementById('tDesc').value = ''; 
+                document.getElementById('tAmount').value = ''; 
                 await this.sync(); 
-                this.modal("Synced", "Transaction successfully saved to cloud.", [{label: 'Great', class: 'btn btn-primary', action: () => this.closeModal()}]);
+                this.modal("Synced", "Transaction saved.", [{label: 'Great', class: 'btn btn-primary', action: () => this.closeModal()}]);
             }
         },
 
         renderUI() {
-            const monthData = state.transactions.filter(t => new Date(t.created_at).getMonth() === state.viewDate.getMonth() && new Date(t.created_at).getFullYear() === state.viewDate.getFullYear());
+            const monthData = state.transactions.filter(t => {
+                const d = new Date(t.created_at);
+                return d.getMonth() === state.viewDate.getMonth() && d.getFullYear() === state.viewDate.getFullYear();
+            });
             const inc = monthData.filter(t => t.amount > 0).reduce((a, b) => a + b.amount, 0);
             const exp = monthData.filter(t => t.amount < 0).reduce((a, b) => a + Math.abs(b.amount), 0);
             
@@ -412,25 +465,43 @@ const System = (() => {
             const selDateStr = state.selectedDate.toDateString();
             const filtered = state.transactions.filter(t => new Date(t.created_at).toDateString() === selDateStr);
             const feed = document.getElementById('transactionFeed');
+            
             feed.innerHTML = filtered.length ? filtered.map(t => `
                 <div class="t-row">
                     <div><div style="font-weight:700;">${t.desc_text}</div><div style="font-size:0.75rem; color:var(--muted);">${t.category}</div></div>
                     <div class="${t.amount > 0 ? 'amt-pos' : 'amt-neg'}">${t.amount > 0 ? '+' : ''}₱${Math.abs(t.amount).toLocaleString()}</div>
                 </div>`).join('') : '<p style="text-align:center; padding:20px; color:var(--muted);">No entries for this date.</p>';
-            this.updateChart();
+            this.updateChart(monthData);
         },
 
-        updateChart() {
+        updateChart(monthData) {
             const ctx = document.getElementById('mainChart').getContext('2d');
             if (state.mainChart) state.mainChart.destroy();
-            const chartData = [...state.transactions].reverse().slice(-10);
+            
+            // Sort month data by date for chronological display
+            const sortedData = [...monthData].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
             state.mainChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: chartData.map(t => new Date(t.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric'})),
-                    datasets: [{ data: chartData.map(t => t.amount), borderColor: '#6366f1', tension: 0.4, fill: true, backgroundColor: 'rgba(99, 102, 241, 0.08)' }]
+                    labels: sortedData.map(t => new Date(t.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric'})),
+                    datasets: [{ 
+                        label: 'Transaction Amount',
+                        data: sortedData.map(t => t.amount), 
+                        borderColor: '#6366f1', 
+                        tension: 0.4, 
+                        fill: true, 
+                        backgroundColor: 'rgba(99, 102, 241, 0.08)' 
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
             });
         },
 
