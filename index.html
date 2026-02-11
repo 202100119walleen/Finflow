@@ -21,11 +21,27 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 0.3s ease, color 0.3s ease; }
-        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+        @media (min-width: 1024px) {
+            body { flex-direction: row; }
+        }
+
+        /* --- MOBILE TOP BAR --- */
+        .mobile-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: var(--sidebar); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 1001;
+        }
+        @media (min-width: 1024px) { .mobile-header { display: none; } }
+
+        .hamburger {
+            background: none; border: none; font-size: 1.5rem; color: var(--text); cursor: pointer;
+        }
 
         /* --- AUTHENTICATION --- */
         #authWrapper { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; }
-        .auth-card { background: var(--card); padding: 48px; border-radius: var(--radius-xl); width: 100%; max-width: 440px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; }
+        .auth-card { background: var(--card); padding: 40px 24px; border-radius: var(--radius-xl); width: 100%; max-width: 440px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; }
 
         .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; font-size: 0.75rem; font-weight: 800; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -36,27 +52,37 @@
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
         .cal-head { font-size: 0.65rem; font-weight: 800; color: var(--muted); padding-bottom: 8px; }
-        .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); position: relative; }
+        .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); }
         .cal-day:hover { background: var(--border); }
         .cal-day.selected { background: var(--primary); color: white; }
         .cal-day.today { border: 2px solid var(--primary); }
 
-        /* INDICATOR DOT */
-        .has-entry::after { content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; background: var(--primary); border-radius: 50%; }
-        .selected.has-entry::after { background: white; }
-
         /* --- APP STRUCTURE --- */
-        .app-shell { display: none; width: 100%; min-height: 100vh; }
-        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 32px 20px; position: sticky; top: 0; height: 100vh; }
-        .main-view { flex: 1; padding: 40px; display: flex; flex-direction: column; gap: 32px; max-width: 1400px; margin: 0 auto; width: 100%; overflow-y: auto; }
+        .app-shell { display: none; width: 100%; min-height: 100vh; flex-direction: column; }
+        @media (min-width: 1024px) { .app-shell { flex-direction: row; } }
+
+        .sidebar { 
+            width: 100%; background: var(--sidebar); border-right: 1px solid var(--border);
+            display: none; flex-direction: column; padding: 32px 20px; position: fixed; inset: 0; z-index: 1000; height: 100vh;
+        }
+        .sidebar.active { display: flex; }
+        @media (min-width: 1024px) { 
+            .sidebar { width: 320px; display: flex; position: sticky; top: 0; } 
+        }
+
+        .main-view { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+        @media (min-width: 768px) { .main-view { padding: 40px; gap: 32px; } }
 
         .nav-link { padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--muted); text-decoration: none; margin-bottom: 8px; }
         .nav-link.active { background: var(--primary); color: white; }
 
-        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 768px) { .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; } }
         .stat-card { background: var(--card); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; cursor: pointer; }
 
-        .grid-layout { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
+        @media (min-width: 1024px) { .grid-layout { grid-template-columns: repeat(12, 1fr); } }
+        
         .card { background: var(--card); border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 
         .t-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
@@ -77,7 +103,7 @@
             display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;
         }
         .modal-content { 
-            background: var(--card); padding: 32px; border-radius: var(--radius-lg); 
+            background: var(--card); padding: 24px; border-radius: var(--radius-lg); 
             max-width: 450px; width: 100%; box-shadow: var(--shadow); border: 1px solid var(--border);
         }
 
@@ -108,9 +134,18 @@
         </div>
     </section>
 
+    <div class="mobile-header" id="mobileHeader">
+        <div style="font-weight: 800; font-size: 1.2rem;">FF<span style="color: var(--primary);">.</span></div>
+        <button class="hamburger" onclick="System.toggleSidebar()">☰</button>
+    </div>
+
     <div id="appShell" class="app-shell">
-        <aside class="sidebar">
-            <div style="font-weight: 800; font-size: 1.8rem; margin-bottom: 30px;">FF<span style="color: var(--primary);">.</span></div>
+        <aside class="sidebar" id="sidebar">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <div style="font-weight: 800; font-size: 1.8rem;">FF<span style="color: var(--primary);">.</span></div>
+                <button class="hamburger" onclick="System.toggleSidebar()" style="display: block; @media (min-width: 1024px) { display: none; }">✕</button>
+            </div>
+            
             <div class="calendar-container">
                 <div class="calendar-header">
                     <button onclick="System.prevMonth()" style="background:none; border:none; cursor:pointer; color:var(--primary); font-weight:800;">←</button>
@@ -120,17 +155,17 @@
                 <div class="calendar-grid" id="calendarGrid"></div>
             </div>
             <nav style="flex: 1;">
-                <div class="nav-link active">🏠 Dashboard</div>
-                <div class="nav-link" onclick="System.manageCategories()">🏷️ Manage Categories</div>
-                <div class="nav-link" onclick="System.toggleTheme()">🌓 Toggle Theme</div>
-                <div class="nav-link" onclick="System.confirmReset()" style="color: var(--danger);">⚠️ Reset Ledger</div>
+                <div class="nav-link active" onclick="System.toggleSidebar()">🏠 Dashboard</div>
+                <div class="nav-link" onclick="System.manageCategories()">🏷️ Categories</div>
+                <div class="nav-link" onclick="System.toggleTheme()">🌓 Theme</div>
+                <div class="nav-link" onclick="System.sync()">🔄 Sync Data</div>
             </nav>
             <button class="btn" style="color: var(--danger); background: #fee2e2; width: 100%;" onclick="System.logout()">Logout</button>
         </aside>
 
         <main class="main-view">
-            <header style="display: flex; justify-content: space-between; align-items: flex-end;">
-                <div><h1 id="welcomeUser" style="font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;">Welcome</h1><p id="currentDate" style="color: var(--muted); font-weight: 600;"></p></div>
+            <header style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
+                <div><h1 id="welcomeUser" style="font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em;">Welcome</h1><p id="currentDate" style="color: var(--muted); font-weight: 600; font-size: 0.9rem;"></p></div>
                 <button class="btn btn-primary" onclick="System.exportData()">Export CSV</button>
             </header>
 
@@ -143,7 +178,7 @@
             <div class="grid-layout">
                 <div class="card" style="grid-column: span 8;">
                     <h3 style="font-weight: 800; margin-bottom: 24px;">Cash Flow Analysis</h3>
-                    <div style="height: 350px;"><canvas id="mainChart"></canvas></div>
+                    <div style="height: 300px; width: 100%;"><canvas id="mainChart"></canvas></div>
                 </div>
 
                 <div class="card" style="grid-column: span 4;">
@@ -185,6 +220,7 @@ const System = (() => {
     };
 
     return {
+        // --- CORE MODAL SYSTEM ---
         modal(title, content, buttons = [{label: 'Close', class: 'btn', action: () => this.closeModal()}]) {
             const m = document.getElementById('globalModal');
             document.getElementById('modalTitle').innerText = title;
@@ -211,7 +247,12 @@ const System = (() => {
                 this.loadDashboard();
             }
             this.renderCategoryDropdown();
+            this.renderCalendar();
             document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        },
+
+        toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
         },
 
         async loadCategories() {
@@ -228,8 +269,13 @@ const System = (() => {
                     <label>Add New</label>
                     <input type="text" id="newCatInput" class="form-control" placeholder="Category name...">
                 </div>
-                <div id="catListContainer" style="max-height: 200px; overflow-y: auto;">
-                    ${state.categories.map(c => `<div class="cat-item"><span>${c}</span><button class="delete-btn" onclick="System.deleteCategory('${c}')">✕</button></div>`).join('')}
+                <div id="catListContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+                    ${state.categories.map(c => `
+                        <div class="cat-item">
+                            <span>${c}</span>
+                            <button class="delete-btn" onclick="System.deleteCategory('${c}')">✕</button>
+                        </div>
+                    `).join('')}
                 </div>
             `;
             this.modal('Manage Categories', content, [
@@ -244,7 +290,7 @@ const System = (() => {
                 state.categories.push(name);
                 await supabase.from('user_settings').upsert({ user_id: state.user.id, categories: state.categories });
                 this.renderCategoryDropdown();
-                this.manageCategories();
+                this.manageCategories(); // Refresh list
             }
         },
 
@@ -260,27 +306,20 @@ const System = (() => {
             select.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
         },
 
-        // --- RESET FEATURE ---
-        confirmReset() {
-            this.modal("Danger Zone", "This will permanently delete ALL income and expense records. This cannot be undone. Are you absolutely sure?", [
-                {label: 'Cancel', class: 'btn', action: () => this.closeModal()},
-                {label: 'Wipe Everything', class: 'btn', action: () => this.performReset()}
-            ]);
-            // Apply red color to wipe button
-            const wipeBtn = document.getElementById('modalFooter').children[1];
-            wipeBtn.style.background = 'var(--danger)';
-            wipeBtn.style.color = 'white';
-        },
-
-        async performReset() {
-            this.modal("Resetting...", "Connecting to cloud vault and purging data...");
-            const { error } = await supabase.from('transactions').delete().eq('user_id', state.user.id);
-            if (!error) {
-                await this.sync();
-                this.modal("System Reset", "All data has been cleared successfully.", [{label: 'Okay', class: 'btn btn-primary', action: () => this.closeModal()}]);
-            } else {
-                this.modal("Error", "Could not clear data: " + error.message);
-            }
+        showIncomeHistory() {
+            const month = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+            const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth());
+            const content = filtered.length ? `
+                <div style="max-height: 300px; overflow-y: auto;">
+                    ${filtered.map(t => `
+                        <div class="t-row">
+                            <div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div>
+                            <div class="amt-pos">₱${t.amount.toLocaleString()}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p>No income records for this month.</p>';
+            this.modal(`Income: ${month}`, content);
         },
 
         async handleAuth() {
@@ -306,23 +345,13 @@ const System = (() => {
             grid.innerHTML = '';
             label.innerText = state.viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             ['S','M','T','W','T','F','S'].forEach(d => grid.innerHTML += `<div class="cal-head">${d}</div>`);
-            
             const year = state.viewDate.getFullYear(), month = state.viewDate.getMonth();
             const firstDay = new Date(year, month, 1).getDay(), days = new Date(year, month + 1, 0).getDate();
-            
-            // Map dates that have entries
-            const entryDays = state.transactions.map(t => {
-                const d = new Date(t.created_at);
-                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-            });
-
             for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
             for (let i = 1; i <= days; i++) {
                 const isSel = i === state.selectedDate.getDate() && month === state.selectedDate.getMonth() && year === state.selectedDate.getFullYear();
-                const hasData = entryDays.includes(`${year}-${month}-${i}`);
-                
                 const dayEl = document.createElement('div');
-                dayEl.className = `cal-day ${isSel ? 'selected' : ''} ${hasData ? 'has-entry' : ''}`;
+                dayEl.className = `cal-day ${isSel ? 'selected' : ''}`;
                 dayEl.innerText = i;
                 dayEl.onclick = () => { state.selectedDate = new Date(year, month, i); this.selectDate(state.selectedDate); };
                 grid.appendChild(dayEl);
@@ -346,6 +375,7 @@ const System = (() => {
 
         async loadDashboard() {
             document.getElementById('authWrapper').classList.add('hidden');
+            document.getElementById('mobileHeader').classList.remove('hidden');
             document.getElementById('appShell').style.display = 'flex';
             await this.sync();
         },
@@ -353,7 +383,6 @@ const System = (() => {
         async sync() {
             const { data } = await supabase.from('transactions').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
             state.transactions = data || [];
-            this.renderCalendar(); // Re-render to show new indicator dots
             this.renderUI();
         },
 
@@ -367,7 +396,7 @@ const System = (() => {
             if (!error) { 
                 document.getElementById('tDesc').value = ''; document.getElementById('tAmount').value = ''; 
                 await this.sync(); 
-                this.modal("Synced", "Transaction successfully saved.", [{label: 'Okay', class: 'btn btn-primary', action: () => this.closeModal()}]);
+                this.modal("Synced", "Transaction successfully saved to cloud.", [{label: 'Great', class: 'btn btn-primary', action: () => this.closeModal()}]);
             }
         },
 
@@ -410,13 +439,6 @@ const System = (() => {
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = 'FinFlow_Report.csv'; a.click();
-        },
-
-        showIncomeHistory() {
-            const month = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-            const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth());
-            const content = filtered.length ? `<div style="max-height: 300px; overflow-y: auto;">${filtered.map(t => `<div class="t-row"><div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div><div class="amt-pos">₱${t.amount.toLocaleString()}</div></div>`).join('')}</div>` : '<p>No records for this month.</p>';
-            this.modal(`Income: ${month}`, content);
         },
 
         toggleAuthMode() { state.isLoginMode = !state.isLoginMode; document.getElementById('authBtn').innerText = state.isLoginMode ? "Sign In" : "Sign Up"; },
