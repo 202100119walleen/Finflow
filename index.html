@@ -11,9 +11,10 @@
 
     <style>
         :root {
-            --primary: #6366f1; --primary-hover: #4f46e5; --success: #10b981; --danger: #ef4444;
+            --primary: #6366f1; --primary-hover: #4f46e5; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
             --bg: #f8fafc; --sidebar: #ffffff; --card: #ffffff; --text: #0f172a; --muted: #64748b; --border: #e2e8f0;
             --radius-xl: 32px; --radius-lg: 24px; --radius-md: 16px; --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+            --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         [data-theme="dark"] {
@@ -21,11 +22,9 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 0.3s ease, color 0.3s ease; }
-        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
-        @media (min-width: 1024px) {
-            body { flex-direction: row; }
-        }
+        @media (min-width: 1024px) { body { flex-direction: row; } }
 
         .mobile-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -34,9 +33,8 @@
         }
         @media (min-width: 1024px) { .mobile-header { display: none; } }
 
-        .hamburger {
-            background: none; border: none; font-size: 1.5rem; color: var(--text); cursor: pointer;
-        }
+        .hamburger { background: none; border: none; font-size: 1.5rem; color: var(--text); cursor: pointer; transition: var(--transition); }
+        .hamburger:hover { transform: scale(1.1); color: var(--primary); }
 
         #authWrapper { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto;}
         .auth-card { background: var(--card); padding: 40px 24px; border-radius: var(--radius-xl); width: 100%; max-width: 440px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; margin-top: auto; margin-bottom: auto;}
@@ -49,84 +47,114 @@
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
         .cal-head { font-size: 0.65rem; font-weight: 800; color: var(--muted); padding-bottom: 8px; }
-        .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); position: relative; }
-        .cal-day:hover { background: var(--border); }
+        .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; color: var(--text); position: relative; transition: var(--transition); }
+        .cal-day:hover { background: var(--border); transform: translateY(-2px); }
         .cal-day.selected { background: var(--primary); color: white; }
         .cal-day.today { border: 2px solid var(--primary); }
         
         .has-entry::after {
-            content: '';
-            position: absolute;
-            bottom: 4px;
-            width: 4px;
-            height: 4px;
-            background-color: var(--primary);
-            border-radius: 50%;
+            content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; background-color: var(--primary); border-radius: 50%;
         }
         .selected.has-entry::after { background-color: white; }
 
         .app-shell { display: none; width: 100%; min-height: 100vh; flex-direction: column; }
         @media (min-width: 1024px) { .app-shell { flex-direction: row; } }
 
+        /* Sidebar Cool Effects */
         .sidebar { 
-            width: 100%; background: var(--sidebar); border-right: 1px solid var(--border);
-            display: none; flex-direction: column; padding: 32px 20px; position: fixed; inset: 0; z-index: 1000; height: 100vh;
+            width: 280px; background: var(--sidebar); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; padding: 32px 20px; 
+            position: fixed; left: -280px; top: 0; bottom: 0; z-index: 2000;
+            transition: var(--transition);
+            box-shadow: 20px 0 50px rgba(0,0,0,0.05);
         }
-        .sidebar.active { display: flex; }
+        .sidebar.active { left: 0; }
+        .sidebar-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); 
+            z-index: 1999; opacity: 0; visibility: hidden; transition: var(--transition);
+        }
+        .sidebar-overlay.active { opacity: 1; visibility: visible; }
+
         @media (min-width: 1024px) { 
-            .sidebar { width: 320px; display: flex; position: sticky; top: 0; } 
+            .sidebar { position: sticky; left: 0; transform: none; box-shadow: none; width: 320px; }
+            .sidebar-overlay { display: none; }
         }
 
-        .main-view { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
-        @media (min-width: 768px) { .main-view { padding: 40px; gap: 32px; } }
+        .nav-link { 
+            padding: 14px 18px; border-radius: 14px; cursor: pointer; display: flex; 
+            align-items: center; gap: 12px; font-weight: 600; color: var(--muted); 
+            text-decoration: none; margin-bottom: 10px; transition: var(--transition);
+            position: relative; overflow: hidden;
+        }
+        .nav-link:hover { background: var(--bg); color: var(--primary); transform: translateX(5px); }
+        .nav-link.active { background: var(--primary); color: white; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3); }
+        .nav-link.active::before {
+            content: ''; position: absolute; left: 0; top: 25%; bottom: 25%; width: 4px; 
+            background: white; border-radius: 0 4px 4px 0;
+        }
 
-        .nav-link { padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--muted); text-decoration: none; margin-bottom: 8px; }
-        .nav-link.active { background: var(--primary); color: white; }
+        .main-view { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 24px; max-width: 1400px; margin: 0 auto; width: 100%; transition: var(--transition); }
+        @media (min-width: 768px) { .main-view { padding: 40px; gap: 32px; } }
 
         .stat-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
         @media (min-width: 768px) { .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; } }
-        .stat-card { background: var(--card); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; cursor: pointer; }
+        .stat-card { background: var(--card); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; cursor: pointer; transition: var(--transition); }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.08); }
 
-        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
+        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 24px; animation: fadeIn 0.5s ease-out; }
         @media (min-width: 1024px) { .grid-layout { grid-template-columns: repeat(12, 1fr); } }
         
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
         .card { background: var(--card); border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 
-        .t-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
+        .t-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); transition: 0.2s; }
+        .t-row:hover { background: var(--bg); border-radius: 10px; }
         .amt-pos { color: var(--success); font-weight: 700; }
         .amt-neg { color: var(--danger); font-weight: 700; }
 
-        .btn { padding: 14px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
+        .btn { padding: 14px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; transition: var(--transition); }
+        .btn:active { transform: scale(0.96); }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); }
 
         .type-toggle { display: flex; background: var(--bg); padding: 4px; border-radius: 10px; margin-bottom: 20px; }
-        .type-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; cursor: pointer; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.8rem; }
+        .type-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; cursor: pointer; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.8rem; transition: var(--transition); }
         .type-btn.active-inc { background: var(--success); color: white; }
         .type-btn.active-exp { background: var(--danger); color: white; }
 
         .modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); 
             display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;
         }
         .modal-content { 
             background: var(--card); padding: 24px; border-radius: var(--radius-lg); 
             max-width: 450px; width: 100%; box-shadow: var(--shadow); border: 1px solid var(--border);
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        @keyframes modalPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-        .delete-btn { color: var(--danger); cursor: pointer; border: none; background: none; font-weight: 800; }
+        .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); font-size: 1rem; font-weight: 500; }
+        .delete-btn { color: var(--danger); cursor: pointer; border: none; background: none; font-size: 1.2rem; transition: 0.2s; }
+        .delete-btn:hover { transform: rotate(90deg); }
 
         .hidden { display: none !important; }
         
         .toggle-switch { display: flex; background: var(--bg); padding: 5px; border-radius: 12px; border: 1px solid var(--border); }
-        .toggle-opt { padding: 8px 12px; font-size: 0.7rem; font-weight: 800; cursor: pointer; border-radius: 8px; color: var(--muted); }
+        .toggle-opt { padding: 8px 12px; font-size: 0.7rem; font-weight: 800; cursor: pointer; border-radius: 8px; color: var(--muted); transition: 0.3s; }
         .toggle-opt.active { background: var(--primary); color: white; }
+
+        .sync-indicator { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; margin-top: 4px; }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; transition: 0.3s; }
+        .sync-dot.synced { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .sync-dot.syncing { background: var(--warning); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body data-theme="light">
 
     <div id="globalModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" id="modalContainer">
             <h3 id="modalTitle" style="margin-bottom: 12px; font-weight: 800;"></h3>
             <div id="modalBody" style="margin-bottom: 24px;"></div>
             <div id="modalFooter" style="display: flex; gap: 10px; justify-content: flex-end;"></div>
@@ -155,6 +183,8 @@
         <button class="hamburger" onclick="System.toggleSidebar()">☰</button>
     </div>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="System.toggleSidebar()"></div>
+
     <div id="appShell" class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
@@ -171,8 +201,9 @@
                 <div class="calendar-grid" id="calendarGrid"></div>
             </div>
             <nav style="flex: 1;">
-                <div class="nav-link active" onclick="System.toggleSidebar()">🏠 Dashboard</div>
-                <div class="nav-link" onclick="System.manageCategories()">🏷️ Categories</div>
+                <div id="navDash" class="nav-link active" onclick="System.switchView('dash')">🏠 Dashboard</div>
+                <div id="navAnalysis" class="nav-link" onclick="System.switchView('analysis')">📈 Cash Analysis</div>
+                <div id="navCats" class="nav-link" onclick="System.switchView('cats')">🏷️ Categories</div>
                 <div class="nav-link" onclick="System.toggleTheme()">🌓 Theme</div>
                 <div class="nav-link" onclick="System.sync()">🔄 Sync Data</div>
             </nav>
@@ -184,6 +215,10 @@
                 <div>
                     <h1 id="welcomeUser" style="font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em;">Welcome</h1>
                     <p id="currentDate" style="color: var(--muted); font-weight: 600; font-size: 0.9rem;"></p>
+                    <div class="sync-indicator">
+                        <div id="syncDot" class="sync-dot synced"></div>
+                        <span id="syncText" style="color: var(--muted);">Data Synced</span>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <div class="toggle-switch">
@@ -197,19 +232,19 @@
 
             <div class="stat-grid">
                 <div class="stat-card" onclick="System.showIncomeHistory()"><small style="color: var(--success); font-weight: 800; text-transform: uppercase;">Income</small><h2 id="statInc">₱0.00</h2></div>
-                <div class="stat-card"><small style="color: var(--danger); font-weight: 800; text-transform: uppercase;">Expenses</small><h2 id="statExp">₱0.00</h2></div>
+                <div class="stat-card" onclick="System.switchView('analysis')"><small style="color: var(--danger); font-weight: 800; text-transform: uppercase;">Expenses</small><h2 id="statExp">₱0.00</h2></div>
                 <div class="stat-card" style="background: var(--primary); color: white;"><small style="font-weight: 800; text-transform: uppercase; opacity: 0.8;">Balance</small><h2 id="statBal">₱0.00</h2></div>
             </div>
 
-            <div class="grid-layout">
+            <div id="dashboardView" class="grid-layout">
                 <div class="card" style="grid-column: span 8;">
-                    <h3 id="chartTitle" style="font-weight: 800; margin-bottom: 24px;">Cash Flow Analysis</h3>
-                    <div style="height: 300px; width: 100%;"><canvas id="mainChart"></canvas></div>
+                    <h3 style="font-weight: 800; margin-bottom: 20px;">Activity Log</h3>
+                    <div style="margin-bottom: 12px; font-size: 0.75rem; font-weight: 800; color: var(--primary);">HISTORY FOR: <span id="entryDateLabel">Today</span></div>
+                    <div id="transactionFeed" style="max-height: 500px; overflow-y: auto;"></div>
                 </div>
 
                 <div class="card" style="grid-column: span 4;">
                     <h3 style="font-weight: 800; margin-bottom: 20px;">Quick Entry</h3>
-                    <div style="margin-bottom: 12px; font-size: 0.75rem; font-weight: 800; color: var(--primary);">FOR: <span id="entryDateLabel">Today</span></div>
                     <div class="type-toggle"><button id="typeInc" class="type-btn active-inc" onclick="System.setType('inc')">INCOME</button><button id="typeExp" class="type-btn" onclick="System.setType('exp')">EXPENSE</button></div>
                     <div class="input-group"><label>Description</label><input type="text" id="tDesc" class="form-control"></div>
                     <div class="input-group"><label>Amount (₱)</label><input type="number" id="tAmount" class="form-control"></div>
@@ -219,12 +254,41 @@
                     </div>
                     <button class="btn btn-primary" style="width: 100%;" onclick="System.addTransaction()">Sync Transaction</button>
                 </div>
+            </div>
 
-                <div class="card" style="grid-column: span 12;">
-                    <h3 id="feedTitle" style="font-weight: 800; margin-bottom: 20px;">Activity Log</h3>
-                    <div id="transactionFeed" style="max-height: 400px; overflow-y: auto;"></div>
+            <div id="analysisView" class="hidden">
+                <div class="grid-layout">
+                    <div class="card" style="grid-column: span 8;">
+                        <h3 id="analysisTitle" style="font-weight: 800; margin-bottom: 24px;">Flow Trend</h3>
+                        <div style="height: 400px; width: 100%;"><canvas id="mainChart"></canvas></div>
+                    </div>
+                    <div class="card" style="grid-column: span 4;">
+                        <h3 style="font-weight: 800; margin-bottom: 24px;">Category Breakdown</h3>
+                        <div style="height: 300px; width: 100%;"><canvas id="catChart"></canvas></div>
+                        <div id="catLegend" style="margin-top: 20px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
                 </div>
             </div>
+
+            <div id="categoriesView" class="hidden">
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <h2 style="font-weight: 800; margin-bottom: 8px;">Manage Categories</h2>
+                    <p style="color: var(--muted); font-size: 0.8rem; font-weight: 800; margin-bottom: 24px; text-transform: uppercase;">Add New</p>
+                    
+                    <div class="input-group">
+                        <input type="text" id="newCatInput" class="form-control" placeholder="Category name...">
+                    </div>
+                    
+                    <div id="catListContainer" style="border: 1px solid var(--border); border-radius: 12px; max-height: 400px; overflow-y: auto; margin-bottom: 24px;">
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-primary" style="flex: 1;" onclick="System.saveNewCategory()">Add Category</button>
+                        <button class="btn" style="background: var(--bg);" onclick="System.switchView('dash')">Done</button>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -240,14 +304,30 @@ const System = (() => {
         transactions: [],
         categories: ['Salary', 'Food', 'Utilities', 'Investments', 'Savings','Transportation', 'Personal'],
         mainChart: null,
+        catChart: null,
         isLoginMode: true,
         currentType: 'inc',
         viewDate: new Date(),
         selectedDate: new Date(),
-        viewScope: 'month'
+        viewScope: 'month',
+        activeView: 'dash'
     };
 
+    const colors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#06b6d4', '#8b5cf6', '#ec4899', '#64748b'];
+
     return {
+        setSyncState(isSyncing) {
+            const dot = document.getElementById('syncDot');
+            const text = document.getElementById('syncText');
+            if (isSyncing) {
+                dot.className = 'sync-dot syncing';
+                text.innerText = 'Syncing...';
+            } else {
+                dot.className = 'sync-dot synced';
+                text.innerText = 'Data Synced';
+            }
+        },
+
         modal(title, content, buttons = [{label: 'Close', class: 'btn', action: () => this.closeModal()}]) {
             const m = document.getElementById('globalModal');
             document.getElementById('modalTitle').innerText = title;
@@ -281,17 +361,18 @@ const System = (() => {
         },
 
         async loadProfile() {
-            const { data, error } = await supabase.from('profiles').select('*').eq('id', state.user.id).single();
+            const { data } = await supabase.from('profiles').select('*').eq('id', state.user.id).single();
             if (data && data.full_name) {
                 state.profile = data;
                 document.getElementById('welcomeUser').innerText = `Welcome, ${data.full_name}`;
-            } else {
-                document.getElementById('welcomeUser').innerText = `Welcome`;
             }
         },
 
-        toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
+        toggleSidebar() { 
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            sb.classList.toggle('active'); 
+            ov.classList.toggle('active');
         },
 
         async loadCategories() {
@@ -299,45 +380,72 @@ const System = (() => {
             if (data && data.categories) {
                 state.categories = data.categories;
                 this.renderCategoryDropdown();
+                this.renderCatList();
             }
         },
 
-        manageCategories() {
-            const content = `
-                <div class="input-group">
-                    <label>Add New</label>
-                    <input type="text" id="newCatInput" class="form-control" placeholder="Category name...">
+        switchView(view) {
+            state.activeView = view;
+            const views = {
+                dash: document.getElementById('dashboardView'),
+                analysis: document.getElementById('analysisView'),
+                cats: document.getElementById('categoriesView')
+            };
+            const navs = {
+                dash: document.getElementById('navDash'),
+                analysis: document.getElementById('navAnalysis'),
+                cats: document.getElementById('navCats')
+            };
+
+            Object.keys(views).forEach(v => {
+                views[v].classList.add('hidden');
+                navs[v].classList.remove('active');
+            });
+
+            views[view].classList.remove('hidden');
+            navs[view].classList.add('active');
+
+            if (view === 'analysis') this.renderUI();
+            if (view === 'cats') this.renderCatList();
+            
+            if(window.innerWidth < 1024) {
+                const sb = document.getElementById('sidebar');
+                const ov = document.getElementById('sidebarOverlay');
+                if(sb.classList.contains('active')) this.toggleSidebar();
+            }
+        },
+
+        renderCatList() {
+            const container = document.getElementById('catListContainer');
+            container.innerHTML = state.categories.map(c => `
+                <div class="cat-item">
+                    <span>${c}</span>
+                    <button class="delete-btn" onclick="System.deleteCategory('${c}')">✕</button>
                 </div>
-                <div id="catListContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
-                    ${state.categories.map(c => `
-                        <div class="cat-item">
-                            <span>${c}</span>
-                            <button class="delete-btn" onclick="System.deleteCategory('${c}')">✕</button>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            this.modal('Manage Categories', content, [
-                {label: 'Add Category', class: 'btn btn-primary', action: () => this.saveNewCategory()},
-                {label: 'Done', class: 'btn', action: () => this.closeModal()}
-            ]);
+            `).join('');
         },
 
         async saveNewCategory() {
-            const name = document.getElementById('newCatInput').value.trim();
+            const input = document.getElementById('newCatInput');
+            const name = input.value.trim();
             if (name && !state.categories.includes(name)) {
+                this.setSyncState(true);
                 state.categories.push(name);
                 await supabase.from('user_settings').upsert({ user_id: state.user.id, categories: state.categories });
+                input.value = '';
                 this.renderCategoryDropdown();
-                this.manageCategories();
+                this.renderCatList();
+                this.setSyncState(false);
             }
         },
 
         async deleteCategory(name) {
+            this.setSyncState(true);
             state.categories = state.categories.filter(c => c !== name);
             await supabase.from('user_settings').upsert({ user_id: state.user.id, categories: state.categories });
             this.renderCategoryDropdown();
-            this.manageCategories();
+            this.renderCatList();
+            this.setSyncState(false);
         },
 
         renderCategoryDropdown() {
@@ -348,48 +456,26 @@ const System = (() => {
         showIncomeHistory() {
             const month = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
             const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth() && new Date(t.created_at).getFullYear() === state.viewDate.getFullYear());
-            const content = filtered.length ? `
-                <div style="max-height: 300px; overflow-y: auto;">
-                    ${filtered.map(t => `
-                        <div class="t-row">
-                            <div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div>
-                            <div class="amt-pos">₱${t.amount.toLocaleString()}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '<p>No income records for this month.</p>';
+            const content = filtered.length ? `<div style="max-height: 300px; overflow-y: auto;">${filtered.map(t => `<div class="t-row"><div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div><div class="amt-pos">₱${t.amount.toLocaleString()}</div></div>`).join('')}</div>` : '<p>No records.</p>';
             this.modal(`Income: ${month}`, content);
         },
 
         async handleAuth() {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
-            const initBal = parseFloat(document.getElementById('initBalance').value) || 0;
             const btn = document.getElementById('authBtn');
-            
             btn.disabled = true;
             try {
                 if (state.isLoginMode) {
-                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    const { error } = await supabase.auth.signInWithPassword({ email, password });
                     if (error) throw error;
                     location.reload();
                 } else {
                     const { data, error } = await supabase.auth.signUp({ email, password });
                     if (error) throw error;
-                    
                     if (data.user) {
-                        // Profile is created without fullName requirement
                         await supabase.from('profiles').upsert([{ id: data.user.id }]);
-                        if(initBal !== 0) {
-                            await supabase.from('transactions').insert([{
-                                user_id: data.user.id,
-                                desc_text: 'Opening Balance',
-                                amount: initBal,
-                                category: 'Investments',
-                                created_at: new Date().toISOString()
-                            }]);
-                        }
-                        this.modal("Account Created", "Check your email for verification. You can now Sign In.", [{label: 'Go to Login', class: 'btn btn-primary', action: () => { this.toggleAuthMode(); this.closeModal(); }}]);
+                        this.modal("Success", "Account created. Please verify your email.");
                     }
                 }
             } catch (err) { this.modal("Auth Error", err.message); } finally { btn.disabled = false; }
@@ -399,37 +485,22 @@ const System = (() => {
             const grid = document.getElementById('calendarGrid');
             const label = document.getElementById('calMonthLabel');
             grid.innerHTML = '';
-            
             const year = state.viewDate.getFullYear();
             const month = state.viewDate.getMonth();
             label.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(state.viewDate);
-            
             ['S','M','T','W','T','F','S'].forEach(d => grid.innerHTML += `<div class="cal-head">${d}</div>`);
-            
             const firstDayIndex = new Date(year, month, 1).getDay();
             const lastDayDate = new Date(year, month + 1, 0).getDate();
-            const today = new Date();
-
-            const entryDays = state.transactions.map(t => {
-                const d = new Date(t.created_at);
-                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-            });
-
+            const entryDays = state.transactions.map(t => { const d = new Date(t.created_at); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; });
             for (let i = 0; i < firstDayIndex; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
-
             for (let i = 1; i <= lastDayDate; i++) {
                 const dayDate = new Date(year, month, i);
                 const isSelected = dayDate.toDateString() === state.selectedDate.toDateString();
-                const isToday = dayDate.toDateString() === today.toDateString();
                 const hasEntry = entryDays.includes(`${year}-${month}-${i}`);
-                
                 const dayEl = document.createElement('div');
-                dayEl.className = `cal-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${hasEntry ? 'has-entry' : ''}`;
+                dayEl.className = `cal-day ${isSelected ? 'selected' : ''} ${dayDate.toDateString() === new Date().toDateString() ? 'today' : ''} ${hasEntry ? 'has-entry' : ''}`;
                 dayEl.innerText = i;
-                dayEl.onclick = () => {
-                    state.selectedDate = new Date(year, month, i);
-                    this.selectDate(state.selectedDate);
-                };
+                dayEl.onclick = () => { state.selectedDate = new Date(year, month, i); this.selectDate(state.selectedDate); };
                 grid.appendChild(dayEl);
             }
         },
@@ -447,35 +518,24 @@ const System = (() => {
             state.viewScope = scope;
             document.getElementById('viewMonth').className = scope === 'month' ? 'toggle-opt active' : 'toggle-opt';
             document.getElementById('viewYear').className = scope === 'year' ? 'toggle-opt active' : 'toggle-opt';
-            document.getElementById('chartTitle').innerText = scope === 'month' ? 'Cash Flow Analysis' : `Annual Summary ${state.viewDate.getFullYear()}`;
             this.renderUI();
         },
 
         confirmClearMonth() {
-            const monthName = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-            this.modal("Danger Zone", `Are you sure you want to delete ALL entries for ${monthName}? This cannot be undone.`, [
+            this.modal("Confirm", "Delete entries for this month?", [
                 {label: 'Cancel', class: 'btn', action: () => this.closeModal()},
-                {label: 'Clear Everything', class: 'btn', style: 'background: var(--danger); color: white;', action: () => this.executeClearMonth()}
+                {label: 'Delete', class: 'btn btn-primary', action: () => this.executeClearMonth()}
             ]);
         },
 
         async executeClearMonth() {
-            const year = state.viewDate.getFullYear();
-            const month = state.viewDate.getMonth();
-            const start = new Date(year, month, 1).toISOString();
-            const end = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-
-            const { error } = await supabase.from('transactions')
-                .delete()
-                .eq('user_id', state.user.id)
-                .gte('created_at', start)
-                .lte('created_at', end);
-
-            if (!error) {
-                await this.sync();
-                this.closeModal();
-                this.modal("Deleted", "Month cleared successfully.");
-            }
+            this.setSyncState(true);
+            const start = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth(), 1).toISOString();
+            const end = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth() + 1, 0, 23, 59, 59).toISOString();
+            await supabase.from('transactions').delete().eq('user_id', state.user.id).gte('created_at', start).lte('created_at', end);
+            await this.sync();
+            this.closeModal();
+            this.setSyncState(false);
         },
 
         setType(type) {
@@ -492,33 +552,25 @@ const System = (() => {
         },
 
         async sync() {
+            this.setSyncState(true);
             const { data } = await supabase.from('transactions').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
             state.transactions = data || [];
             this.renderCalendar();
             this.renderUI();
+            this.setSyncState(false);
         },
 
         async addTransaction() {
             const desc = document.getElementById('tDesc').value;
             let amt = parseFloat(document.getElementById('tAmount').value);
             const cat = document.getElementById('tCat').value;
-            if (!desc || isNaN(amt)) return this.modal("Input Error", "Please enter valid description and amount.");
+            if (!desc || isNaN(amt)) return;
+            this.setSyncState(true);
             if (state.currentType === 'exp') amt = -Math.abs(amt);
-            
-            const { error } = await supabase.from('transactions').insert([{ 
-                user_id: state.user.id, 
-                desc_text: desc, 
-                amount: amt, 
-                category: cat, 
-                created_at: state.selectedDate.toISOString() 
-            }]);
-
-            if (!error) { 
-                document.getElementById('tDesc').value = ''; 
-                document.getElementById('tAmount').value = ''; 
-                await this.sync(); 
-                this.modal("Synced", "Transaction saved.", [{label: 'Great', class: 'btn btn-primary', action: () => this.closeModal()}]);
-            }
+            await supabase.from('transactions').insert([{ user_id: state.user.id, desc_text: desc, amount: amt, category: cat, created_at: state.selectedDate.toISOString() }]);
+            document.getElementById('tDesc').value = ''; document.getElementById('tAmount').value = '';
+            await this.sync();
+            this.setSyncState(false);
         },
 
         renderUI() {
@@ -527,10 +579,8 @@ const System = (() => {
                 if (state.viewScope === 'year') return d.getFullYear() === state.viewDate.getFullYear();
                 return d.getMonth() === state.viewDate.getMonth() && d.getFullYear() === state.viewDate.getFullYear();
             });
-
             const inc = filterData.filter(t => t.amount > 0).reduce((a, b) => a + b.amount, 0);
             const exp = filterData.filter(t => t.amount < 0).reduce((a, b) => a + Math.abs(b.amount), 0);
-            
             document.getElementById('statInc').innerText = `₱${inc.toLocaleString()}`;
             document.getElementById('statExp').innerText = `₱${exp.toLocaleString()}`;
             document.getElementById('statBal').innerText = `₱${(inc - exp).toLocaleString()}`;
@@ -538,62 +588,94 @@ const System = (() => {
             const selDateStr = state.selectedDate.toDateString();
             const dayEntries = state.transactions.filter(t => new Date(t.created_at).toDateString() === selDateStr);
             const feed = document.getElementById('transactionFeed');
-            
-            feed.innerHTML = dayEntries.length ? dayEntries.map(t => `
-                <div class="t-row">
-                    <div><div style="font-weight:700;">${t.desc_text}</div><div style="font-size:0.75rem; color:var(--muted);">${t.category}</div></div>
-                    <div class="${t.amount > 0 ? 'amt-pos' : 'amt-neg'}">${t.amount > 0 ? '+' : ''}₱${Math.abs(t.amount).toLocaleString()}</div>
-                </div>`).join('') : '<p style="text-align:center; padding:20px; color:var(--muted);">No entries for this date.</p>';
-            
-            this.updateChart(filterData);
+            feed.innerHTML = dayEntries.length ? dayEntries.map(t => `<div class="t-row"><div><div style="font-weight:700;">${t.desc_text}</div><div style="font-size:0.75rem; color:var(--muted);">${t.category}</div></div><div class="${t.amount > 0 ? 'amt-pos' : 'amt-neg'}">₱${Math.abs(t.amount).toLocaleString()}</div></div>`).join('') : '<p style="text-align:center; padding:40px; color:var(--muted);">No entries.</p>';
+
+            if (state.activeView === 'analysis') this.renderCharts(filterData);
         },
 
-        updateChart(displayData) {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            if (state.mainChart) state.mainChart.destroy();
-            
-            let labels, chartData;
-
+        renderCharts(displayData) {
+            const ctxMain = document.getElementById('mainChart').getContext('2d');
+            let labelsMain, dataMain;
             if (state.viewScope === 'year') {
                 const months = Array(12).fill(0);
                 displayData.forEach(t => months[new Date(t.created_at).getMonth()] += t.amount);
-                labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                chartData = months;
+                labelsMain = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                dataMain = months;
             } else {
                 const sorted = [...displayData].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                labels = sorted.map(t => new Date(t.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
-                chartData = sorted.map(t => t.amount);
+                labelsMain = sorted.map(t => new Date(t.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
+                dataMain = sorted.map(t => t.amount);
             }
-            
-            state.mainChart = new Chart(ctx, {
+            if (state.mainChart) state.mainChart.destroy();
+            state.mainChart = new Chart(ctxMain, {
                 type: state.viewScope === 'year' ? 'bar' : 'line',
                 data: {
-                    labels: labels,
+                    labels: labelsMain,
                     datasets: [{ 
-                        data: chartData, 
+                        data: dataMain, 
                         borderColor: '#6366f1', 
-                        backgroundColor: state.viewScope === 'year' ? '#6366f1' : 'rgba(99, 102, 241, 0.08)',
-                        tension: 0.4, 
-                        fill: true 
+                        backgroundColor: state.viewScope === 'year' ? '#6366f1' : 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4, fill: true 
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
+
+            const ctxCat = document.getElementById('catChart').getContext('2d');
+            const catMap = {};
+            displayData.forEach(t => {
+                const cat = t.category || 'Uncategorized';
+                catMap[cat] = (catMap[cat] || 0) + Math.abs(t.amount);
+            });
+            const catLabels = Object.keys(catMap);
+            const catData = Object.values(catMap);
+
+            if (state.catChart) state.catChart.destroy();
+            state.catChart = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catData,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: (context) => `₱${context.raw.toLocaleString()}` }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            const legend = document.getElementById('catLegend');
+            legend.innerHTML = catLabels.map((l, i) => `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:${colors[i % colors.length]};"></div>
+                        <span style="font-weight:600; color:var(--text);">${l}</span>
+                    </div>
+                    <span style="color:var(--muted);">₱${catMap[l].toLocaleString()}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('analysisTitle').innerText = state.viewScope === 'month' ? 'Cash Flow Analysis' : `Annual Summary ${state.viewDate.getFullYear()}`;
         },
 
         exportData() {
             const csv = "Date,Description,Category,Amount\n" + state.transactions.map(t => `${t.created_at},${t.desc_text},${t.category},${t.amount}`).join("\n");
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'FinFlow_Report.csv'; a.click();
+            const a = document.createElement('a'); a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'FinFlow.csv'; a.click();
         },
 
         toggleAuthMode() { 
             state.isLoginMode = !state.isLoginMode; 
-            document.getElementById('authBtn').innerText = state.isLoginMode ? "Sign In to Dashboard" : "Create Enterprise Account";
-            document.getElementById('authSubtitle').innerText = state.isLoginMode ? "Precision Cloud Financials" : "Join the FinFlow Network";
-            document.getElementById('toggleQuestion').innerText = state.isLoginMode ? "Don't have an account?" : "Already have an account?";
-            document.getElementById('toggleText').innerText = state.isLoginMode ? "Create Account" : "Sign In";
+            document.getElementById('authBtn').innerText = state.isLoginMode ? "Sign In" : "Create Account";
             document.getElementById('regFields').classList.toggle('hidden');
         },
         toggleTheme() { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); },
