@@ -60,7 +60,6 @@
         .app-shell { display: none; width: 100%; min-height: 100vh; flex-direction: column; }
         @media (min-width: 1024px) { .app-shell { flex-direction: row; } }
 
-        /* Sidebar Cool Effects */
         .sidebar { 
             width: 280px; background: var(--sidebar); border-right: 1px solid var(--border);
             display: flex; flex-direction: column; padding: 32px 20px; 
@@ -108,7 +107,7 @@
 
         .card { background: var(--card); border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 
-        .t-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); transition: 0.2s; }
+        .t-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); transition: 0.2s; cursor: pointer; }
         .t-row:hover { background: var(--bg); border-radius: 10px; }
         .amt-pos { color: var(--success); font-weight: 700; }
         .amt-neg { color: var(--danger); font-weight: 700; }
@@ -170,11 +169,22 @@
                 <div class="input-group"><label>Initial Balance (₱)</label><input type="number" id="initBalance" class="form-control" placeholder="0.00"></div>
             </div>
 
-            <div class="input-group"><label>Email Address</label><input type="email" id="email" class="form-control" placeholder="Enter your email"></div>
-            <div class="input-group"><label>Password</label><input type="password" id="password" class="form-control" placeholder="Enter your password"></div>
-            
-            <button id="authBtn" class="btn btn-primary" style="width: 100%;" onclick="System.handleAuth()">Sign In to Dashboard</button>
-            <p style="margin-top: 24px; font-size: 0.85rem; color: var(--muted);"><span id="toggleQuestion">Don't have an account?</span> <a href="#" id="toggleText" onclick="System.toggleAuthMode()" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create Account</a></p>
+            <div id="authFields">
+                <div class="input-group"><label>Email Address</label><input type="email" id="email" class="form-control" placeholder="Enter your email"></div>
+                <div class="input-group" id="passGroup"><label>Password</label><input type="password" id="password" class="form-control" placeholder="Enter your password"></div>
+                
+                <button id="authBtn" class="btn btn-primary" style="width: 100%;" onclick="System.handleAuth()">Sign In to Dashboard</button>
+                
+                <p id="forgotPassLink" style="margin-top: 15px; font-size: 0.8rem;"><a href="#" onclick="System.toggleForgotMode()" style="color: var(--muted); text-decoration: none;">Forgot Password?</a></p>
+
+                <p style="margin-top: 24px; font-size: 0.85rem; color: var(--muted);"><span id="toggleQuestion">Don't have an account?</span> <a href="#" id="toggleText" onclick="System.toggleAuthMode()" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create Account</a></p>
+            </div>
+
+            <div id="resetFields" class="hidden">
+                <div class="input-group"><label>New Password</label><input type="password" id="newPassword" class="form-control" placeholder="At least 6 characters"></div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="System.handleResetPassword()">Update Password</button>
+                <p style="margin-top: 20px;"><a href="#" onclick="location.reload()" style="color: var(--primary); font-size: 0.8rem; text-decoration: none;">Back to Login</a></p>
+            </div>
         </div>
     </section>
 
@@ -306,6 +316,7 @@ const System = (() => {
         mainChart: null,
         catChart: null,
         isLoginMode: true,
+        isForgotMode: false,
         currentType: 'inc',
         viewDate: new Date(),
         selectedDate: new Date(),
@@ -319,13 +330,8 @@ const System = (() => {
         setSyncState(isSyncing) {
             const dot = document.getElementById('syncDot');
             const text = document.getElementById('syncText');
-            if (isSyncing) {
-                dot.className = 'sync-dot syncing';
-                text.innerText = 'Syncing...';
-            } else {
-                dot.className = 'sync-dot synced';
-                text.innerText = 'Data Synced';
-            }
+            if (dot) dot.className = isSyncing ? 'sync-dot syncing' : 'sync-dot synced';
+            if (text) text.innerText = isSyncing ? 'Syncing...' : 'Data Synced';
         },
 
         modal(title, content, buttons = [{label: 'Close', class: 'btn', action: () => this.closeModal()}]) {
@@ -347,6 +353,15 @@ const System = (() => {
         closeModal() { document.getElementById('globalModal').style.display = 'none'; },
 
         async init() {
+            // Check for recovery session (password reset)
+            const hash = window.location.hash;
+            if (hash && hash.includes('type=recovery')) {
+                document.getElementById('authFields').classList.add('hidden');
+                document.getElementById('resetFields').classList.remove('hidden');
+                document.getElementById('authSubtitle').innerText = "Create New Password";
+                return;
+            }
+
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 state.user = session.user;
@@ -357,7 +372,60 @@ const System = (() => {
             this.renderCategoryDropdown();
             this.renderCalendar();
             this.selectDate(new Date());
-            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const dateEl = document.getElementById('currentDate');
+            if(dateEl) dateEl.innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        },
+
+        toggleForgotMode() {
+            state.isForgotMode = !state.isForgotMode;
+            document.getElementById('passGroup').classList.toggle('hidden');
+            document.getElementById('forgotPassLink').classList.toggle('hidden');
+            document.getElementById('authBtn').innerText = state.isForgotMode ? "Send Reset Email" : "Sign In to Dashboard";
+            document.getElementById('toggleText').parentElement.classList.toggle('hidden');
+        },
+
+        async handleResetPassword() {
+            const newPass = document.getElementById('newPassword').value;
+            if(newPass.length < 6) return this.modal("Error", "Password too short.");
+            
+            const { error } = await supabase.auth.updateUser({ password: newPass });
+            if (error) {
+                this.modal("Error", error.message);
+            } else {
+                this.modal("Success", "Password updated! Redirecting...", [{label: "Login", class: "btn btn-primary", action: () => location.href = window.location.pathname}]);
+            }
+        },
+
+        async handleAuth() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('authBtn');
+            
+            if (state.isForgotMode) {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.href,
+                });
+                if (error) return this.modal("Error", error.message);
+                this.modal("Check Email", "Recovery link has been sent to your inbox.");
+                this.toggleForgotMode();
+                return;
+            }
+
+            btn.disabled = true;
+            try {
+                if (state.isLoginMode) {
+                    const { error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    location.reload();
+                } else {
+                    const { data, error } = await supabase.auth.signUp({ email, password });
+                    if (error) throw error;
+                    if (data.user) {
+                        await supabase.from('profiles').upsert([{ id: data.user.id }]);
+                        this.modal("Success", "Account created. Please verify your email.");
+                    }
+                }
+            } catch (err) { this.modal("Auth Error", err.message); } finally { btn.disabled = false; }
         },
 
         async loadProfile() {
@@ -410,7 +478,6 @@ const System = (() => {
             
             if(window.innerWidth < 1024) {
                 const sb = document.getElementById('sidebar');
-                const ov = document.getElementById('sidebarOverlay');
                 if(sb.classList.contains('active')) this.toggleSidebar();
             }
         },
@@ -456,34 +523,14 @@ const System = (() => {
         showIncomeHistory() {
             const month = state.viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
             const filtered = state.transactions.filter(t => t.amount > 0 && new Date(t.created_at).getMonth() === state.viewDate.getMonth() && new Date(t.created_at).getFullYear() === state.viewDate.getFullYear());
-            const content = filtered.length ? `<div style="max-height: 300px; overflow-y: auto;">${filtered.map(t => `<div class="t-row"><div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div><div class="amt-pos">₱${t.amount.toLocaleString()}</div></div>`).join('')}</div>` : '<p>No records.</p>';
+            const content = filtered.length ? `<div style="max-height: 300px; overflow-y: auto;">${filtered.map(t => `<div class="t-row" onclick="System.openTransactionEdit('${t.id}')"><div><b>${t.desc_text}</b><br><small>${new Date(t.created_at).toLocaleDateString()}</small></div><div class="amt-pos">₱${t.amount.toLocaleString()}</div></div>`).join('')}</div>` : '<p>No records.</p>';
             this.modal(`Income: ${month}`, content);
-        },
-
-        async handleAuth() {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('authBtn');
-            btn.disabled = true;
-            try {
-                if (state.isLoginMode) {
-                    const { error } = await supabase.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
-                    location.reload();
-                } else {
-                    const { data, error } = await supabase.auth.signUp({ email, password });
-                    if (error) throw error;
-                    if (data.user) {
-                        await supabase.from('profiles').upsert([{ id: data.user.id }]);
-                        this.modal("Success", "Account created. Please verify your email.");
-                    }
-                }
-            } catch (err) { this.modal("Auth Error", err.message); } finally { btn.disabled = false; }
         },
 
         renderCalendar() {
             const grid = document.getElementById('calendarGrid');
             const label = document.getElementById('calMonthLabel');
+            if(!grid) return;
             grid.innerHTML = '';
             const year = state.viewDate.getFullYear();
             const month = state.viewDate.getMonth();
@@ -506,7 +553,8 @@ const System = (() => {
         },
 
         selectDate(date) {
-            document.getElementById('entryDateLabel').innerText = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const label = document.getElementById('entryDateLabel');
+            if(label) label.innerText = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             this.renderCalendar();
             this.renderUI();
         },
@@ -552,6 +600,7 @@ const System = (() => {
         },
 
         async sync() {
+            if(!state.user) return;
             this.setSyncState(true);
             const { data } = await supabase.from('transactions').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
             state.transactions = data || [];
@@ -573,7 +622,49 @@ const System = (() => {
             this.setSyncState(false);
         },
 
+        // NEW FUNCTION: Open Edit Modal
+        openTransactionEdit(id) {
+            const t = state.transactions.find(item => item.id === id);
+            if(!t) return;
+
+            const content = `
+                <div class="input-group"><label>Description</label><input type="text" id="editDesc" class="form-control" value="${t.desc_text}"></div>
+                <div class="input-group"><label>Amount (₱)</label><input type="number" id="editAmount" class="form-control" value="${Math.abs(t.amount)}"></div>
+                <div class="input-group"><label>Category</label><select id="editCat" class="form-control">${state.categories.map(c => `<option value="${c}" ${c === t.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+            `;
+
+            this.modal("Modify Record", content, [
+                {label: 'Delete Record', class: 'btn', action: () => this.handleDeleteTransaction(id)},
+                {label: 'Save Changes', class: 'btn btn-primary', action: () => this.handleUpdateTransaction(id, t.amount > 0 ? 'inc' : 'exp')}
+            ]);
+        },
+
+        // NEW FUNCTION: Update Transaction
+        async handleUpdateTransaction(id, originalType) {
+            const desc = document.getElementById('editDesc').value;
+            let amt = parseFloat(document.getElementById('editAmount').value);
+            const cat = document.getElementById('editCat').value;
+
+            if(!desc || isNaN(amt)) return;
+            this.setSyncState(true);
+            this.closeModal();
+
+            if (originalType === 'exp') amt = -Math.abs(amt);
+
+            await supabase.from('transactions').update({ desc_text: desc, amount: amt, category: cat }).eq('id', id);
+            await this.sync();
+        },
+
+        // NEW FUNCTION: Delete single transaction
+        async handleDeleteTransaction(id) {
+            this.setSyncState(true);
+            this.closeModal();
+            await supabase.from('transactions').delete().eq('id', id);
+            await this.sync();
+        },
+
         renderUI() {
+            if(!state.user) return;
             const filterData = state.transactions.filter(t => {
                 const d = new Date(t.created_at);
                 if (state.viewScope === 'year') return d.getFullYear() === state.viewDate.getFullYear();
@@ -588,13 +679,16 @@ const System = (() => {
             const selDateStr = state.selectedDate.toDateString();
             const dayEntries = state.transactions.filter(t => new Date(t.created_at).toDateString() === selDateStr);
             const feed = document.getElementById('transactionFeed');
-            feed.innerHTML = dayEntries.length ? dayEntries.map(t => `<div class="t-row"><div><div style="font-weight:700;">${t.desc_text}</div><div style="font-size:0.75rem; color:var(--muted);">${t.category}</div></div><div class="${t.amount > 0 ? 'amt-pos' : 'amt-neg'}">₱${Math.abs(t.amount).toLocaleString()}</div></div>`).join('') : '<p style="text-align:center; padding:40px; color:var(--muted);">No entries.</p>';
+            // Updated feed innerHTML to include the onclick event for editing
+            if(feed) feed.innerHTML = dayEntries.length ? dayEntries.map(t => `<div class="t-row" onclick="System.openTransactionEdit('${t.id}')"><div><div style="font-weight:700;">${t.desc_text}</div><div style="font-size:0.75rem; color:var(--muted);">${t.category}</div></div><div class="${t.amount > 0 ? 'amt-pos' : 'amt-neg'}">₱${Math.abs(t.amount).toLocaleString()}</div></div>`).join('') : '<p style="text-align:center; padding:40px; color:var(--muted);">No entries.</p>';
 
             if (state.activeView === 'analysis') this.renderCharts(filterData);
         },
 
         renderCharts(displayData) {
-            const ctxMain = document.getElementById('mainChart').getContext('2d');
+            const canvasMain = document.getElementById('mainChart');
+            if (!canvasMain) return;
+            const ctxMain = canvasMain.getContext('2d');
             let labelsMain, dataMain;
             if (state.viewScope === 'year') {
                 const months = Array(12).fill(0);
@@ -621,7 +715,9 @@ const System = (() => {
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            const ctxCat = document.getElementById('catChart').getContext('2d');
+            const canvasCat = document.getElementById('catChart');
+            if (!canvasCat) return;
+            const ctxCat = canvasCat.getContext('2d');
             const catMap = {};
             displayData.forEach(t => {
                 const cat = t.category || 'Uncategorized';
